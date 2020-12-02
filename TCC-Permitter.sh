@@ -1,0 +1,159 @@
+#!/bin/zsh
+#######################################
+# Allow services that are denied in the TCC database.
+# Arguments:
+#   $1: Bundle ID or Binary path
+#   $2: TCC service name, case sensitive
+#     - Accessibility
+#     - AddressBook
+#     - All
+#     - AppleEvents
+#     - Calendar
+#     - Camera
+#     - ContactsFull
+#     - ContactsLimited
+#     - DeveloperTool
+#     - Facebook
+#     - FileProviderDomain
+#     - FileProviderPresence
+#     - LinkedIn
+#     - ListenEvent
+#     - Liverpool
+#     - Location
+#     - MediaLibrary
+#     - Microphone
+#     - Motion
+#     - Photos
+#     - PhotosAdd
+#     - PostEvent
+#     - Reminders
+#     - ScreenCapture
+#     - ShareKit
+#     - SinaWeibo
+#     - Siri
+#     - SpeechRecognition
+#     - SystemPolicyAllFiles
+#     - SystemPolicyDesktopFolder
+#     - SystemPolicyDeveloperFiles
+#     - SystemPolicyDocumentsFolder
+#     - SystemPolicyDownloadsFolder
+#     - SystemPolicyNetworkVolumes
+#     - SystemPolicyRemovableVolumes
+#     - SystemPolicySysAdminFiles
+#     - TencentWeibo
+#     - Twitter
+#     - Ubiquity
+#     - Willow
+#######################################
+
+VERSION='0.1.0'
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# MARK: Functions
+
+#######################################
+# Run arguments as current user.
+# Globals:
+#   CURRENT_USER
+# Arguments:
+#   $@: Script to run
+#######################################
+run_as_user() {
+  local uid=$(id -u "${CURRENT_USER}")
+  launchctl asuser "${uid}" sudo -u "${CURRENT_USER}" "$@"
+}
+
+#######################################
+# Output info log with timestamp.
+# Arguments:
+#   $@: Script to run
+# Outputs:
+#   Writes a argument with timestamp to stdout
+#######################################
+print_info_log(){
+  local timestamp=$(date +%F\ %T)
+
+  echo "$timestamp [INFO] $1"
+}
+
+#######################################
+# Output error log with timestamp.
+# Arguments:
+#   $@: Script to run
+# Outputs:
+#   Writes a argument with timestamp to stdout
+#######################################
+print_error_log(){
+  local timestamp=$(date +%F\ %T)
+
+  echo "$timestamp [ERROR] $1"
+}
+
+# MARK: Main script
+
+autoload is-at-least
+
+if ! is-at-least 10.14 "$(sw_vers -productVersion)";then
+  # PPPC is available from Mojave
+  print_error_log "TCC-Permiter requires at least macOS 10.14 Mojave."
+  exit 98
+fi
+
+if [[ "${1}" == "/" ]];then
+	# Jamf uses sends '/' as the first argument
+  print_info_log "Shifting arguments for Jamf."
+  shift 3
+fi
+
+if [[ "${1:l}" == "version" ]];then
+  echo "${VERSION}"
+  exit 0
+fi
+
+BUNDLE_ID_OR_BINARY_PATH="${1}"
+
+if [[ ! "${BUNDLE_ID_OR_BINARY_PATH}" ]];then
+  print_error_log "You need to set Bundle ID or Binary path as first argument."
+  exit 1
+fi
+
+TCC_SERVICE_NAME="${2}"
+
+if [[ ! "${TCC_SERVICE_NAME}" ]];then
+  print_error_log "You need to set service name as second argument."
+  exit 1
+fi
+
+if [[ ! "$(strings /System/Library/PrivateFrameworks/TCC.framework/TCC | grep kTCCService | grep -v '%' | sed -e 's/kTCCService//' | sort | grep -E "^${TCC_SERVICE_NAME}$")" ]];then
+  print_error_log "${TCC_SERVICE_NAME} is invalid name as TCC Service."
+  exit 1
+fi
+
+print_info_log "Start TCC-Permitter..."
+
+CURRENT_USER=$(stat -f%Su /dev/console)
+TCC_DB_PATH="/Users/${CURRENT_USER}/Library/Application Support/com.apple.TCC/TCC.db"
+
+if [[ ! -e "${TCC_DB_PATH}" ]];then
+  print_error_log "Perhaps you have not been granted full disk access rights in this execution environment."
+  exit 1
+fi
+
+TCC_NOT_ALLOWED_ACCESS_PRESENT=$(run_as_user sqlite3 "${TCC_DB_PATH}" "SELECT service FROM access WHERE allowed = '0' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'")
+
+if [[ ! "${TCC_NOT_ALLOWED_ACCESS_PRESENT}" ]];then
+  TCC_ALLOWED_ACCESS_PRESENT=$(run_as_user sqlite3 "${TCC_DB_PATH}" "SELECT service FROM access WHERE allowed = '1' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'")
+
+  if [[ "${TCC_ALLOWED_ACCESS_PRESENT}" ]];then
+    print_info_log "${TCC_SERVICE_NAME} of ${BUNDLE_ID_OR_BINARY_PATH} is already allowed."
+  else
+    print_info_log "There does not seem to be a single prompt for TCC access rights yet."
+  fi
+  exit 0
+fi
+
+run_as_user sqlite3 "${TCC_DB_PATH}" "UPDATE access SET allowed = '1', last_modified = '$(date +%s)' WHERE allowed = '0' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'"
+
+print_info_log "Successfully allowed for ${TCC_SERVICE_NAME} TCC service of ${BUNDLE_ID_OR_BINARY_PATH}."
+
+exit 0
