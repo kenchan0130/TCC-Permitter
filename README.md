@@ -63,6 +63,12 @@ sqlite3 -header "$HOME/Library/Application Support/com.apple.TCC/TCC.db" "SELECT
 You can specify one of the following list
 It is case-insensitive.
 
+If you want to specify more than one, you can use comma-separated values like:
+
+```sh
+./TCC-Permitter.sh "us.zoom.xos" "Camera,Microphone,ScreenCapture"
+```
+
 * Accessibility
 * AddressBook
 * All

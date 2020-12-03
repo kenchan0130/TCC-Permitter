@@ -4,6 +4,7 @@
 # Arguments:
 #   $1: Bundle ID or Binary path
 #   $2: TCC service name, case sensitive
+#       Multiple can be specified separated by commas
 #     - Accessibility
 #     - AddressBook
 #     - All
@@ -59,7 +60,8 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 #   $@: Script to run
 #######################################
 run_as_user() {
-  local uid=$(id -u "${CURRENT_USER}")
+  local uid
+  uid=$(id -u "${CURRENT_USER}")
   launchctl asuser "${uid}" sudo -u "${CURRENT_USER}" "$@"
 }
 
@@ -71,7 +73,8 @@ run_as_user() {
 #   Writes a argument with timestamp to stdout
 #######################################
 print_info_log(){
-  local timestamp=$(date +%F\ %T)
+  local timestamp
+  timestamp=$(date +%F\ %T)
 
   echo "$timestamp [INFO] $1"
 }
@@ -84,9 +87,14 @@ print_info_log(){
 #   Writes a argument with timestamp to stdout
 #######################################
 print_error_log(){
-  local timestamp=$(date +%F\ %T)
+  local timestamp
+  timestamp=$(date +%F\ %T)
 
   echo "$timestamp [ERROR] $1"
+}
+
+get_ttc_services(){
+  strings /System/Library/PrivateFrameworks/TCC.framework/TCC | grep kTCCService | grep -v '%'
 }
 
 # MARK: Main script
@@ -99,35 +107,36 @@ if ! is-at-least 10.14 "$(sw_vers -productVersion)";then
   exit 98
 fi
 
-if [[ "${1}" == "/" ]];then
+if [[ "${1}" = "/" ]];then
 	# Jamf uses sends '/' as the first argument
   print_info_log "Shifting arguments for Jamf."
   shift 3
 fi
 
-if [[ "${1:l}" == "version" ]];then
+if [[ "${1:l}" = "version" ]];then
   echo "${VERSION}"
   exit 0
 fi
 
-BUNDLE_ID_OR_BINARY_PATH="${1}"
-
-if [[ ! "${BUNDLE_ID_OR_BINARY_PATH}" ]];then
+if [[ ! "${1}" ]];then
   print_error_log "You need to set Bundle ID or Binary path as first argument."
   exit 1
 fi
+BUNDLE_ID_OR_BINARY_PATH="${1}"
 
-TCC_SERVICE_NAME="${2}"
-
-if [[ ! "${TCC_SERVICE_NAME}" ]];then
+if [[ ! "${2}" ]];then
   print_error_log "You need to set service name as second argument."
   exit 1
 fi
+TCC_SERVICE_NAME_LIST=($(echo "${2}" | tr ',' ' '))
 
-if [[ ! "$(strings /System/Library/PrivateFrameworks/TCC.framework/TCC | grep kTCCService | grep -v '%' | sed -e 's/kTCCService//' | sort | grep -E "^${TCC_SERVICE_NAME}$")" ]];then
-  print_error_log "${TCC_SERVICE_NAME} is invalid name as TCC Service."
-  exit 1
-fi
+for TCC_SERVICE_NAME in "${TCC_SERVICE_NAME_LIST[@]}";do
+echo $TCC_SERVICE_NAME
+  if ! get_ttc_services | sed -e 's/kTCCService//' | sort | grep -qE "^${TCC_SERVICE_NAME}$";then
+    print_error_log "${TCC_SERVICE_NAME} is invalid name as TCC Service."
+    exit 1
+  fi
+done
 
 print_info_log "Start TCC-Permitter..."
 
@@ -139,21 +148,24 @@ if [[ ! -e "${TCC_DB_PATH}" ]];then
   exit 1
 fi
 
-TCC_NOT_ALLOWED_ACCESS_PRESENT=$(run_as_user sqlite3 "${TCC_DB_PATH}" "SELECT service FROM access WHERE allowed = '0' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'")
+for TCC_SERVICE_NAME in "${TCC_SERVICE_NAME_LIST[@]}";do
+  print_info_log "Granting ${TCC_SERVICE_NAME}..."
 
-if [[ ! "${TCC_NOT_ALLOWED_ACCESS_PRESENT}" ]];then
-  TCC_ALLOWED_ACCESS_PRESENT=$(run_as_user sqlite3 "${TCC_DB_PATH}" "SELECT service FROM access WHERE allowed = '1' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'")
+  TCC_NOT_ALLOWED_ACCESS_PRESENT=$(run_as_user sqlite3 "${TCC_DB_PATH}" "SELECT service FROM access WHERE allowed = '0' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'")
 
-  if [[ "${TCC_ALLOWED_ACCESS_PRESENT}" ]];then
-    print_info_log "${TCC_SERVICE_NAME} of ${BUNDLE_ID_OR_BINARY_PATH} is already allowed."
+  if [[ ! "${TCC_NOT_ALLOWED_ACCESS_PRESENT}" ]];then
+    TCC_ALLOWED_ACCESS_PRESENT=$(run_as_user sqlite3 "${TCC_DB_PATH}" "SELECT service FROM access WHERE allowed = '1' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'")
+
+    if [[ "${TCC_ALLOWED_ACCESS_PRESENT}" ]];then
+      print_info_log "${TCC_SERVICE_NAME} of ${BUNDLE_ID_OR_BINARY_PATH} is already allowed."
+    else
+      print_info_log "There does not seem to be a single prompt for TCC access rights yet."
+    fi
   else
-    print_info_log "There does not seem to be a single prompt for TCC access rights yet."
+    run_as_user sqlite3 "${TCC_DB_PATH}" "UPDATE access SET allowed = '1', last_modified = '$(date +%s)' WHERE allowed = '0' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'"
+
+    print_info_log "Successfully allowed for ${TCC_SERVICE_NAME} TCC service of ${BUNDLE_ID_OR_BINARY_PATH}."
   fi
-  exit 0
-fi
-
-run_as_user sqlite3 "${TCC_DB_PATH}" "UPDATE access SET allowed = '1', last_modified = '$(date +%s)' WHERE allowed = '0' AND client = '${BUNDLE_ID_OR_BINARY_PATH}' AND service = 'kTCCService${TCC_SERVICE_NAME}'"
-
-print_info_log "Successfully allowed for ${TCC_SERVICE_NAME} TCC service of ${BUNDLE_ID_OR_BINARY_PATH}."
+done
 
 exit 0
