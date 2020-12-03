@@ -131,7 +131,6 @@ fi
 TCC_SERVICE_NAME_LIST=($(echo "${2}" | tr ',' ' '))
 
 for TCC_SERVICE_NAME in "${TCC_SERVICE_NAME_LIST[@]}";do
-echo $TCC_SERVICE_NAME
   if ! get_ttc_services | sed -e 's/kTCCService//' | sort | grep -qE "^${TCC_SERVICE_NAME}$";then
     print_error_log "${TCC_SERVICE_NAME} is invalid name as TCC Service."
     exit 1
