@@ -147,7 +147,8 @@ done
 print_info_log "Start TCC-Permitter..."
 
 CURRENT_USER=$(stat -f%Su /dev/console)
-TCC_DB_PATH="/Users/${CURRENT_USER}/Library/Application Support/com.apple.TCC/TCC.db"
+CURRENT_USER_HOME_DIRECTORY_PATH=$(dscl /Local/Default read "/Users/${CURRENT_USER}" NFSHomeDirectory | awk '{print $2}')
+TCC_DB_PATH="${CURRENT_USER_HOME_DIRECTORY_PATH}/Library/Application Support/com.apple.TCC/TCC.db"
 
 if [[ ! -e "${TCC_DB_PATH}" ]];then
   print_error_log "Perhaps you have not been granted full disk access rights in this execution environment."
