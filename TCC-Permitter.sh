@@ -47,7 +47,7 @@
 #     - Willow
 #######################################
 
-VERSION='0.2.0'
+VERSION='0.2.1'
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
 # MARK: Functions
