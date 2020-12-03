@@ -115,7 +115,7 @@ if ! is-at-least 10.14 "$(sw_vers -productVersion)";then
 fi
 
 if [[ "${1}" = "/" ]];then
-	# Jamf uses sends '/' as the first argument
+  # Jamf uses sends '/' as the first argument
   print_info_log "Shifting arguments for Jamf."
   shift 3
 fi
