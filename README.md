@@ -12,7 +12,9 @@ Therefore, I have created a script to force the User Consent item to be allowed.
 
 ## Requirements
 
-Because This script reads TCC database, full disk access privileges are required.
+* Full disk access
+   * This script reads TCC database
+* macOS 10.14 Mojave or later
 
 ## How to use
 
