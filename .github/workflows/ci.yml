@@ -1,0 +1,36 @@
+name: CI
+on:
+  push:
+    branches:
+      - dev
+      - topic/ci # TODO: remove this after
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform:
+          - macos-10.15
+          # - macos-11.0
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Installomator
+        run: |
+          curl -sfL https://raw.githubusercontent.com/scriptingosx/Installomator/master/Installomator.sh | /usr/bin/sed 's/^DEBUG=1$/DEBUG=0/' > /tmp/Installomator.sh
+          chmod +x /tmp/Installomator.sh
+      - name: Install Zoom app
+        run: |
+          sudo /tmp/Installomator.sh zoom
+      - name: Open zoom
+        run: |
+          open /Applications/zoom.us.app
+          sleep 10
+      - uses: OrbitalOwen/desktop-screenshot-action@0.1
+
+
+
+
