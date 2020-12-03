@@ -93,6 +93,13 @@ print_error_log(){
   echo "$timestamp [ERROR] $1"
 }
 
+#######################################
+# Get TCC service list.
+# Arguments:
+#   None
+# Outputs:
+#   Writes TCC servcies list to stdout
+#######################################
 get_ttc_services(){
   strings /System/Library/PrivateFrameworks/TCC.framework/TCC | grep kTCCService | grep -v '%'
 }
