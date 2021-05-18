@@ -13,7 +13,7 @@ Therefore, I have created a script to force the User Consent item to be allowed.
 ## Requirements
 
 * Full disk access
-   * This script reads TCC database
+  * This script reads TCC database
 * macOS 10.14 Mojave or later
 
 ## How to use
@@ -75,18 +75,26 @@ If you want to specify more than one, you can use comma-separated values like:
 * AddressBook
 * All
 * AppleEvents
+* BluetoothAlways
+* BluetoothPeripheral
+* BluetoothWhileInUse
 * Calendar
+* Calls
 * Camera
 * ContactsFull
 * ContactsLimited
 * DeveloperTool
+* FaceID
 * Facebook
 * FileProviderDomain
 * FileProviderPresence
+* KeyboardNetwork
 * LinkedIn
 * ListenEvent
 * Liverpool
 * Location
+  * Gone by 11.0
+* MSO
 * MediaLibrary
 * Microphone
 * Motion
@@ -95,6 +103,28 @@ If you want to specify more than one, you can use comma-separated values like:
 * PostEvent
 * Reminders
 * ScreenCapture
+* SensorKitAmbientLightSensor
+* SensorKitDeviceUsage
+* SensorKitElevation
+* SensorKitForegroundAppCategory
+* SensorKitKeyboardMetrics
+* SensorKitLocationMetrics
+* SensorKitMessageUsage
+* SensorKitMotion
+* SensorKitMotionHeartRate
+* SensorKitOdometer
+* SensorKitPedometer
+* SensorKitPhoneUsage
+* SensorKitSpeechMetrics
+* SensorKitStrideCalibration
+* SensorKitWatchAmbientLightSensor
+* SensorKitWatchFallStats
+* SensorKitWatchForegroundAppCategory
+* SensorKitWatchHeartRate
+* SensorKitWatchMotion
+* SensorKitWatchOnWristState
+* SensorKitWatchPedometer
+* SensorKitWatchSpeechMetrics
 * ShareKit
 * SinaWeibo
 * Siri
